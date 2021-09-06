@@ -43,4 +43,4 @@ print(trainer.get_policy().model.base_model.summary())
 
 # Initialize ray and train the policy using tune.
 ray.init(ignore_reinit_error=True)
-tune.run(trainer,config)
+tune.run(PGTrainer,config=congfig)
