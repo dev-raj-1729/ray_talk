@@ -18,3 +18,54 @@ also make sure you specify the framework as torch and a num of workers > 0
 '''
 
 # Your code here
+import torch.nn as nn
+import ray
+from ray.rllib.models.modelv2 import ModelV2
+from ray.rllib.utils.framework import try_import_torch
+from ray.rllib.utils.typing import ModelConfigDict, TensorType
+from ray.rllib.agents import ppo
+from ray.rllib.models import ModelCatalog
+from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
+from ray import tune
+from ray.rllib.policy.policy import Policy
+from ray.rllib.agents.pg.pg import PGTrainer,DEFAULT_CONFIG
+from ray.rllib.policy.torch_policy_template import build_torch_policy
+from ray.rllib.policy.sample_batch import SampleBatch
+
+class MyCustomModel(TorchModelV2, nn.Module):
+  def __init__(self, *args, **kwargs):
+    TorchModelV2.__init__(self, *args, **kwargs)
+    nn.Module.__init__(self)
+    
+  def forward(self, input_dict, state, seq_lens):
+    model_out=0
+    return model_out,state
+  
+ModelCatalog.register_custom_model("my_torch_model", MyCustomModel)
+
+def policy_gradient_loss(policy, model, dist_class, train_batch):
+    logits, _ = model.from_batch(train_batch)
+    action_dist = dist_class(logits)
+    log_probs = action_dist.logp(train_batch[SampleBatch.ACTIONS])
+    return -train_batch[SampleBatch.REWARDS].dot(log_probs)
+
+
+import torch.optim as optim
+
+MyPolicy = build_torch_policy("MyPolicy",
+loss_fn=policy_gradient_loss,
+)
+
+
+MyTrainer = PGTrainer.with_updates(
+    default_policy=MyPolicy,
+)
+
+ray.init(ignore_reinit_error=True)
+tune.run(MyTrainer,config={
+    "framework": "torch",
+    "model": {
+        "custom_model": "my_torch_model",
+    },
+   "num_workers" : 4,
+})

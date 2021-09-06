@@ -34,10 +34,13 @@ config['env'] = 'CartPole-v0'
 config['framework'] = 'tf2' # using tensorflow to conveniently view model
 
 # modify config
+config['model']['fcnet_hiddens']= [128, 256, 512,64]
+config["fcnet_activation"]= 'relu'
 
 
 trainer = PGTrainer(config) # only for seeing the model specs
 print(trainer.get_policy().model.base_model.summary())
 
 # Initialize ray and train the policy using tune.
-
+ray.init(ignore_reinit_error=True)
+tune.run(PGTrainer,config=congfig)
